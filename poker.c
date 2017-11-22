@@ -90,6 +90,7 @@ int check_straight(hand_info* h) {
 	int num_cards_seen = 0;
 	int num_aces = 0;
 	int num_cards = 0;
+	int last_card_seen = 0;
 	for (int i = 1; i < 14; i++) {
 		num_cards = get_num_cards_of_val(h, i);
 		if (i == 1) {
@@ -105,10 +106,11 @@ int check_straight(hand_info* h) {
 			count = 0;
 		}
 		if (num_cards_seen == 7) {
+			last_card_seen = i;
 			break;
 		}
 	}
-	if (high_card == 13 && num_aces) {
+	if (last_card_seen == 13 && count >= 4 && num_aces) {
 		h->straight = 14;
 		return 14;
 	} else {
@@ -183,6 +185,9 @@ int compare_flushes(hand_info* h1, hand_info* h2) {
 		return 2;
 	} else {
 		int ctr = 0;
+		if (h1_ace_high && h2_ace_high) {
+			ctr = 1;
+		}
 		for (int i = 13; i > 1; i--) {
 			if (ctr == 5) {
 				return 0;
@@ -284,11 +289,13 @@ void get_n_of_a_kind(hand_info* h) {
 			h->quads = i;
 		} else if (new_cards == 3) {
 			if (h->trips) {
+				h->pairs[1] = h->pairs[0];
 				h->pairs[0] = h->trips;
 			}
 			h->trips = i;
 		} else if (new_cards == 2) {
 			if (h->pairs[1] > h->kickers[0]) {
+				memcpy(&h->kickers[1], h->kickers, 4 * sizeof(int));
 				h->kickers[0] = h->pairs[1];
 			}
 			h->pairs[1] = h->pairs[0];
@@ -302,10 +309,12 @@ void get_n_of_a_kind(hand_info* h) {
 		}
 	}
 	if (h->quads && h->trips) {
+		memcpy(&h->kickers[1], h->kickers, 4 * sizeof(int));
 		h->kickers[0] = h->trips;
 	}
 	if (h->quads && h->pairs[0]) {
 		if (h->pairs[0] > h->kickers[0]) {
+			memcpy(&h->kickers[1], h->kickers, 4 * sizeof(int));
 			h->kickers[0] = h->pairs[0];
 		}
 	}
@@ -397,6 +406,7 @@ int main(int argc, char* argv[]) {
 	int ties = 0;
 	clock_t start = clock();
 	while (!finished) {
+		int prev = ties;
 		iters++;
 		h1.straight_flush = 0;
 		h2.straight_flush = 0;
@@ -421,7 +431,7 @@ int main(int argc, char* argv[]) {
 		} else if (update_counts(h1.flush, h2.flush, &h1, &h2, 
 			&h1_wins, &h2_wins, &ties, compare_flushes)) {
 		} else if (update_counts(h1.straight, h2.straight, &h1, &h2, 
-			&h1_wins, &h2_wins, &ties, compare_flushes)) {
+			&h1_wins, &h2_wins, &ties, compare_straights)) {
 		} else if (update_counts(h1.trips, h2.trips, &h1, &h2, 
 			&h1_wins, &h2_wins, &ties, compare_trips)) {
 		} else if (update_counts(h1.pairs[0] && h1.pairs[1], h2.pairs[0] && h2.pairs[1], &h1, &h2, 
@@ -436,7 +446,7 @@ int main(int argc, char* argv[]) {
 	printf("\nYou win %.2f%% of the time\n", h1_wins * 100. / iters);
 	printf("Opponent wins %.2f%% of the time\n", h2_wins * 100. / iters);
 	printf("Tie %.2f%% of the time\n\n", ties * 100. / iters);
-	printf("%i iterations in %f seconds (%f iterations/sec)\n\n", iters, secs, iters / secs);
+	printf("%i hands in %f seconds (%f hands/sec)\n\n", iters, secs, iters / secs);
 }
 
 
